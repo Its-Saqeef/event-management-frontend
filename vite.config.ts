@@ -23,6 +23,7 @@ export default defineConfig({
         ]
       : []),
   ],
+  envDir: path.resolve(import.meta.dirname), // ← Add this line to look in parent directory
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

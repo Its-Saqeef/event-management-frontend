@@ -5,26 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
+import { Event } from '@/services/event-service';
+
 interface EventCardProps {
-  event: {
-    id: string;
-    title: string;
-    description: string;
-    date: string;
-    location: string;
-    price: number;
-    image: string;
-    category: string;
-  };
+  event: Event & { id?: string }; // Support both _id and id for compatibility
 }
 
 export function EventCard({ event }: EventCardProps) {
+  const eventSlug = event.slug || event.id || event._id;
+  
   return (
-    <Link href={`/event/${event.id}`} className="block group">
+    <Link href={`/event/${event.slug}`} className="block group">
       <Card className="overflow-hidden glass-card h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-primary/20 border-0">
         <div className="relative aspect-[16/9] overflow-hidden">
           <img 
-            src={event.image} 
+            src={event.poster || "/placeholder-event.jpg"} 
             alt={event.title}
             className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
           />
@@ -48,13 +43,13 @@ export function EventCard({ event }: EventCardProps) {
           </h3>
           <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
             <MapPin className="size-4 shrink-0 text-secondary" />
-            <span className="truncate">{event.location}</span>
+            <span className="truncate">{event.venue}</span>
           </div>
         </CardContent>
         
         <CardFooter className="p-5 pt-0 flex items-center justify-between">
           <span className="font-bold text-lg text-white">
-            ${event.price}
+            ${event.ticketPrice}
           </span>
           <Button size="sm" className="bg-white/5 hover:bg-primary hover:text-white text-foreground border border-white/10 transition-all">
             Get Tickets

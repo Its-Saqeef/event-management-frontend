@@ -2,19 +2,22 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { useMutation,useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, UploadCloud } from "lucide-react";
+import { CalendarIcon, UploadCloud, Clock } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CATEGORIES } from "@/lib/mock-data";
+import { useRef } from "react";
+import apiClient from "@/lib/api-client";
+import { useToast } from "@/hooks/use-toast";
 
 const eventSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
@@ -23,9 +26,14 @@ const eventSchema = z.object({
   category: z.string(),
   price: z.string().transform((val) => parseFloat(val)),
   date: z.date(),
+  time: z.string().min(1, "Time is required"),
+  image: z.any().optional(),
+  capacity: z.string().transform((val) => parseInt(val)),
 });
 
 export default function Organizer() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
   const form = useForm<z.infer<typeof eventSchema>>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
@@ -34,12 +42,60 @@ export default function Organizer() {
       location: "",
       category: "",
       price: 0,
+      image: undefined,
+      capacity: 0,
+      time: "",
+    },
+  });
+
+  const queryClient = useQueryClient();
+
+  const createEventMutation = useMutation({
+    mutationFn : async (values: z.infer<typeof eventSchema>) => {
+      // Combine date and time into a single Date object
+      const [hours, minutes] = values.time.split(':').map(Number);
+      const eventDateTime = new Date(values.date);
+      eventDateTime.setHours(hours, minutes, 0, 0);
+
+      const formData = new FormData();
+      formData.append("title", values.title);
+      formData.append("description", values.description);
+      formData.append("venue", values.location);
+      formData.append("category", values.category);
+      formData.append("ticketPrice", values.price.toString());
+      formData.append("date", eventDateTime.toISOString());
+      formData.append("capacity", values.capacity.toString());
+      formData.append("time", values.time);
+      if (values.image) {
+        formData.append("poster", values.image);
+      }
+
+      const response = await apiClient.post("/api/events", formData)
+      return response.data;
+    },
+    onSuccess : () => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+     // form.reset();
+      toast({
+        title: "Event created successfully",
+        description: "You can now view your event in the dashboard",
+        variant: "default",
+      });
+      window.location.href = "/dashboard";
+    },
+    onError : (error) => {
+      toast({
+        title: "Failed to create event",
+        description: "Please try again",
+        variant: "destructive",
+      });
     },
   });
 
   function onSubmit(values: z.infer<typeof eventSchema>) {
     console.log(values);
-    alert("Event Created! (Mock)");
+    createEventMutation.mutate(values);
+    
   }
 
   return (
@@ -77,7 +133,7 @@ export default function Organizer() {
                         <FormLabel>Category</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger className="h-12 bg-white/5 border-white/10">
+                            <SelectTrigger className="h-12 bg-white/5 border-white/10 cursor-pointer">
                               <SelectValue placeholder="Select a category" />
                             </SelectTrigger>
                           </FormControl>
@@ -137,6 +193,28 @@ export default function Organizer() {
 
                 <FormField
                   control={form.control}
+                  name="time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="time"
+                            step="60"
+                            className="h-12 bg-white/5 border-white/10 pl-10"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="location"
                   render={({ field }) => (
                     <FormItem>
@@ -174,7 +252,22 @@ export default function Organizer() {
                     <FormItem>
                       <FormLabel>Ticket Price ($)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="0.00" className="h-12 bg-white/5 border-white/10" {...field} />
+                        <Input type="number" placeholder="0.00" className="h-12 bg-white/5 border-white/10" {...field} min={0} />
+                      </FormControl>
+                      <FormDescription>Set to 0 for free events</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+<FormField
+                  control={form.control}
+                  name="capacity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Capacity</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="0.00" className="h-12 bg-white/5 border-white/10" {...field} min={0} />
                       </FormControl>
                       <FormDescription>Set to 0 for free events</FormDescription>
                       <FormMessage />
@@ -182,15 +275,51 @@ export default function Organizer() {
                   )}
                 />
                 
-                <div className="p-6 border border-dashed border-white/20 rounded-xl bg-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors">
-                  <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-sm font-medium">Upload Event Image</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 10MB</p>
-                </div>
+                <FormField
+                  control={form.control}
+                  name="image"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Event Image</FormLabel>
+                      <FormControl>
+                        <Input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              field.onChange(file);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-6 border border-dashed border-white/20 rounded-xl bg-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors"
+                      >
+                        <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                        {field.value ? (
+                          <>
+                            <p className="text-sm font-medium text-primary">{field.value.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Click to change image</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium">Upload Event Image</p>
+                            <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 10MB</p>
+                          </>
+                        )}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <div className="flex justify-end gap-4 pt-4">
                   <Button variant="outline" type="button" className="h-12 px-8 border-white/10">Cancel</Button>
-                  <Button type="submit" className="h-12 px-8 bg-primary text-white font-bold hover:bg-primary/90">Create Event</Button>
+                  <Button type="submit" className="h-12 min-w-10 px-8 bg-primary text-white font-bold hover:bg-primary/90" disabled={createEventMutation.isPending}>{createEventMutation.isPending ? "Creating..." : "Create Event"}</Button>
                 </div>
               </form>
             </Form>

@@ -1,25 +1,47 @@
 import { Layout } from "@/components/Layout";
-import { EVENTS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Clock, Share2, Heart, Ticket, User, Info, ChevronLeft } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { useEventBySlug } from "@/services/event-service";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function EventDetails() {
-  const [match, params] = useRoute("/event/:id");
-  const event = EVENTS.find(e => e.id === params?.id);
+  const [match, params] = useRoute("/event/:slug");
+  const { data: event, isLoading, error } = useEventBySlug(params?.slug || "");
 
-  if (!event) return <div>Event not found</div>;
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Spinner className="h-10 w-10" />
+        </div>
+      </Layout>
+    );
+  }
 
+  if (error || !event) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-12 text-center">
+          <h1 className="text-2xl font-bold mb-4">Event not found</h1>
+          <Link href="/explore">
+            <Button>Back to Explore</Button>
+          </Link>
+        </div>
+      </Layout>
+    );
+  }
+  
   return (
     <Layout>
       <div className="relative">
         {/* Hero Image Background */}
         <div className="h-[50vh] w-full relative overflow-hidden">
           <img 
-            src={event.image} 
+            src={(event as any).poster || (event as any).image || "/placeholder-event.jpg"} 
             alt={event.title} 
             className="w-full h-full object-cover"
           />
@@ -44,11 +66,11 @@ export default function EventDetails() {
                 <div className="flex flex-wrap items-center gap-6 text-white/90">
                   <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md">
                     <User className="size-4 text-secondary" />
-                    <span className="font-medium">By {event.organizer}</span>
+                    <span className="font-medium">By {event.organizer.name}</span>
                   </div>
                   <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md">
                     <Ticket className="size-4 text-secondary" />
-                    <span className="font-medium">{event.attendees} attending</span>
+                    <span className="font-medium">{event.capacity} attending</span>
                   </div>
                 </div>
               </div>
@@ -85,7 +107,7 @@ export default function EventDetails() {
                 <div className="flex justify-between items-start mb-6">
                    <div>
                      <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold mb-1">Price</p>
-                     <h2 className="text-4xl font-bold text-white">${event.price}</h2>
+                     <h2 className="text-4xl font-bold text-white">${(event as any).ticketPrice || (event as any).price || 0}</h2>
                    </div>
                    <Button variant="outline" size="icon" className="rounded-full border-white/10 hover:bg-white/10">
                      <Heart className="size-5" />
@@ -106,12 +128,12 @@ export default function EventDetails() {
                     <MapPin className="size-5 text-secondary mt-0.5" />
                     <div>
                       <p className="font-bold text-white">Location</p>
-                      <p className="text-sm text-muted-foreground">{event.location}</p>
+                      <p className="text-sm text-muted-foreground">{(event as any).venue || (event as any).location}</p>
                     </div>
                   </div>
                 </div>
 
-                <Link href={`/checkout/${event.id}`}>
+                <Link href={`/checkout/${event.slug}`}>
                   <Button className="w-full h-14 text-lg font-bold bg-gradient-to-r from-primary to-secondary hover:opacity-90 shadow-lg shadow-primary/20">
                     Book Ticket Now
                   </Button>

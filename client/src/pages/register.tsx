@@ -3,19 +3,31 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
+import axios from "axios";
 
-const registerSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  email: z.string().email(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const registerSchema = z
+  .object({
+    name: z.string().min(2, "Name is required"),
+    email: z.string().email(),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string(),
+    image: z.any().optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 export default function Register() {
   const form = useForm<z.infer<typeof registerSchema>>({
@@ -25,18 +37,64 @@ export default function Register() {
       email: "",
       password: "",
       confirmPassword: "",
+      image: "",
+    },
+  });
+
+  const queryClient = useQueryClient();
+
+  const registerMutation = useMutation<
+    unknown,
+    unknown,
+    z.infer<typeof registerSchema>
+  >({
+    mutationFn: async (values: z.infer<typeof registerSchema>) => {
+      const formData = new FormData();
+  formData.append("name", values.name);
+  formData.append("email", values.email);
+  formData.append("password", values.password);
+  formData.append("confirmPassword", values.confirmPassword);
+  
+  if (values.image) {
+    formData.append("avatar", values.image);
+  }
+
+  const response = await axios.post(
+    `${import.meta.env.VITE_BACKEND_URL}/api/users/register`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+
+  return response.data;
+    },
+
+    onSuccess: (data) => {
+      console.log("Registration successful:", data);
+
+      // Refresh currently logged-in user
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+
+      // Clear form fields after successful signup
+      form.reset();
+
+      // Redirect AFTER success
+      window.location.href = "/login";
+    },
+
+    onError: (error) => {
+      console.error("Registration failed:", error);
     },
   });
 
   function onSubmit(values: z.infer<typeof registerSchema>) {
-    console.log(values);
-    window.location.href = "/dashboard";
+    console.log("Form Values:", values);
+    registerMutation.mutate(values);
   }
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
       <div className="flex items-center justify-center p-8 bg-background order-2 md:order-1">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
@@ -44,7 +102,9 @@ export default function Register() {
         >
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-heading font-bold">Create Account</h1>
-            <p className="text-muted-foreground">Join EventHorizon and start your journey</p>
+            <p className="text-muted-foreground">
+              Join EventHorizon and start your journey
+            </p>
           </div>
 
           <Form {...form}>
@@ -56,7 +116,11 @@ export default function Register() {
                   <FormItem>
                     <FormLabel>Full Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="John Doe" className="h-12 bg-white/5 border-white/10" {...field} />
+                      <Input
+                        placeholder="John Doe"
+                        className="h-12 bg-white/5 border-white/10"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -69,7 +133,11 @@ export default function Register() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="name@example.com" className="h-12 bg-white/5 border-white/10" {...field} />
+                      <Input
+                        placeholder="name@example.com"
+                        className="h-12 bg-white/5 border-white/10"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -82,7 +150,12 @@ export default function Register() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••" className="h-12 bg-white/5 border-white/10" {...field} />
+                      <Input
+                        type="password"
+                        placeholder="••••••"
+                        className="h-12 bg-white/5 border-white/10"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -95,33 +168,71 @@ export default function Register() {
                   <FormItem>
                     <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••" className="h-12 bg-white/5 border-white/10" {...field} />
+                      <Input
+                        type="password"
+                        placeholder="••••••"
+                        className="h-12 bg-white/5 border-white/10"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full h-12 text-lg bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-bold">Sign Up</Button>
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Profile Image</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="file"
+                        className="cursor-pointer"
+                        onChange={(e) => field.onChange(e.target.files?.[0])}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                className="w-full h-12 text-lg bg-gradient-to-r from-primary to-secondary hover:opacity-90 font-bold"
+                disabled={registerMutation.isPending}
+              >
+                {registerMutation.isPending ? "Creating Account..." : "Sign Up"}
+              </Button>
             </form>
           </Form>
 
           <div className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="text-primary font-bold hover:underline">Log in</Link>
+            <Link
+              href="/login"
+              className="text-primary font-bold hover:underline"
+            >
+              Log in
+            </Link>
           </div>
         </motion.div>
       </div>
 
       <div className="relative hidden md:block bg-muted order-1 md:order-2">
-        <img 
-          src="/attached_assets/generated_images/tech_conference_stage.png" 
-          alt="Register Background" 
+        <img
+          src="/attached_assets/generated_images/tech_conference_stage.png"
+          alt="Register Background"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
         <div className="absolute bottom-10 right-10 p-6 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 max-w-md text-right">
-          <h3 className="text-2xl font-bold text-white mb-2">Join the Community</h3>
-          <p className="text-gray-300">Discover events, connect with people, and create unforgettable memories.</p>
+          <h3 className="text-2xl font-bold text-white mb-2">
+            Join the Community
+          </h3>
+          <p className="text-gray-300">
+            Discover events, connect with people, and create unforgettable
+            memories.
+          </p>
         </div>
       </div>
     </div>

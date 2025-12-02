@@ -13,7 +13,7 @@ export function Hero() {
           alt="Concert Crowd" 
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] bg-gradient-to-t from-background via-background/40 to-transparent" />
+        <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] bg-linear-to-t from-background via-background/40 to-transparent" />
       </div>
 
       {/* Content */}

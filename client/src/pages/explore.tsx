@@ -5,15 +5,26 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
+import { useEvents } from "@/services";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function Explore() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const {data : events,isLoading,error} = useEvents()
+  
+  if(isLoading){
+   return <Spinner />
+  }
 
-  const filteredEvents = EVENTS.filter(event => {
+  if(error){
+    return <p>{error.message}</p>
+  }
+
+  const filteredEvents = events.filter(event => {
     const matchesCategory = selectedCategory === "All" || event.category === selectedCategory;
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          event.location.toLowerCase().includes(searchQuery.toLowerCase());
+                          ((event as any).venue || (event as any).location || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 

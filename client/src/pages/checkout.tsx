@@ -1,5 +1,4 @@
 import { Layout } from "@/components/Layout";
-import { EVENTS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,12 +7,32 @@ import { useRoute } from "wouter";
 import { format } from "date-fns";
 import { CreditCard, Lock, ShieldCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { useEventBySlug } from "@/services/event-service";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function Checkout() {
-  const [match, params] = useRoute("/checkout/:id");
-  const event = EVENTS.find(e => e.id === params?.id);
+  const [match, params] = useRoute("/checkout/:slug");
+  const { data: event, isLoading, error } = useEventBySlug(params?.slug || "");
 
-  if (!event) return <div>Event not found</div>;
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Spinner className="h-10 w-10" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-12 text-center">
+          <h1 className="text-2xl font-bold mb-4">Event not found</h1>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -71,7 +90,7 @@ export default function Checkout() {
             </div>
 
             <Button className="w-full h-14 text-lg font-bold bg-gradient-to-r from-primary to-secondary shadow-lg shadow-primary/20" onClick={() => window.location.href = '/dashboard'}>
-              Pay ${event.price.toFixed(2)}
+              Pay ${(event.ticketPrice || event.price || 0).toFixed(2)}
             </Button>
           </div>
 
@@ -79,7 +98,7 @@ export default function Checkout() {
           <div className="lg:col-span-1">
             <div className="bg-card border border-white/10 rounded-2xl overflow-hidden sticky top-24">
               <div className="aspect-video relative">
-                <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
+                <img src={(event as any).poster || (event as any).image || "/placeholder-event.jpg"} alt={event.title} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/30" />
                 <div className="absolute bottom-3 left-3 right-3">
                   <h3 className="font-bold text-white text-lg leading-tight">{event.title}</h3>
@@ -98,7 +117,7 @@ export default function Checkout() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Location</span>
-                    <span className="text-right max-w-[150px] truncate">{event.location}</span>
+                    <span className="text-right max-w-[150px] truncate">{(event as any).venue || (event as any).location}</span>
                   </div>
                 </div>
                 
@@ -107,7 +126,7 @@ export default function Checkout() {
                 <div className="space-y-2">
                    <div className="flex justify-between text-sm">
                      <span>Ticket x 1</span>
-                     <span>${event.price.toFixed(2)}</span>
+                     <span>${((event as any).ticketPrice || (event as any).price || 0).toFixed(2)}</span>
                    </div>
                    <div className="flex justify-between text-sm">
                      <span>Service Fee</span>
@@ -119,7 +138,7 @@ export default function Checkout() {
                 
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total</span>
-                  <span>${(event.price + 5).toFixed(2)}</span>
+                  <span>${(((event as any).ticketPrice || (event as any).price || 0) + 5).toFixed(2)}</span>
                 </div>
               </div>
             </div>

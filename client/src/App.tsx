@@ -12,18 +12,46 @@ import Register from "@/pages/register";
 import Dashboard from "@/pages/dashboard";
 import Organizer from "@/pages/organizer";
 import Checkout from "@/pages/checkout";
+import { AuthProvider } from "./components/Auth/AuthContext";
+import { ProtectedRoute } from "../src/components/Auth/ProtectedRoute";
+import { PublicRoute } from "../src/components/Auth/PublicRoute";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/explore" component={Explore} />
-      <Route path="/event/:id" component={EventDetails} />
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/organizer" component={Organizer} />
-      <Route path="/checkout/:id" component={Checkout} />
+      <Route path="/event/:slug" component={EventDetails} />
+      <Route path="/login">
+        <PublicRoute>
+          <Login />
+        </PublicRoute>
+      </Route>
+      <Route path="/register">
+        <PublicRoute>
+          <Register />
+        </PublicRoute>
+      </Route>
+      <Route path="/dashboard">
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/organizer">
+        <ProtectedRoute>
+          <Organizer />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/checkout/:slug">
+        <ProtectedRoute>
+          <Checkout/>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/organize">
+        <ProtectedRoute>
+          <Organizer/>
+        </ProtectedRoute>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -33,8 +61,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <AuthProvider>
+          <Toaster />
+          <Router />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

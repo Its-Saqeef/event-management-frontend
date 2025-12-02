@@ -3,12 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { motion } from "framer-motion";
+import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/components/Auth/AuthContext";
+import { useToast } from "@/hooks/use-toast"
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -24,10 +27,33 @@ export default function Login() {
     },
   });
 
+  const {login} = useAuth()
+   const { toast } = useToast();
+   const [,setLocation]=useLocation()
+
+  const loginMutation = useMutation({
+    mutationFn : async (values: z.infer<typeof loginSchema>) =>{
+        await login(values.email,values.password)
+    },
+     onSuccess: () => {
+      toast({
+        title: "Success!",
+        description: "You've been logged in successfully.",
+      });
+      form.reset();
+      setLocation("/dashboard");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Login Failed",
+        description: error.response?.data?.message || "Invalid email or password",
+        variant: "destructive",
+      });
+    },
+  })
+  
   function onSubmit(values: z.infer<typeof loginSchema>) {
-    console.log(values);
-    // Mock login logic would go here
-    window.location.href = "/dashboard";
+    loginMutation.mutate(values)
   }
 
   return (

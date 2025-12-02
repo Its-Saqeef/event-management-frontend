@@ -6,9 +6,20 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useEvents } from "@/services/event-service";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function Home() {
   const featuredEvents = EVENTS.slice(0, 3);
+  const { data: events, isLoading, error } = useEvents();
+  
+
+  if(isLoading) {
+    return <Spinner />
+  }
+  if(error) {
+    return <div>Error: {error.message}</div>;
+  }
 
   return (
     <Layout>
@@ -30,9 +41,9 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {featuredEvents.map((event, index) => (
+          {events.slice(0,3).map((event, index) => (
             <motion.div
-              key={event.id}
+              key={event._id}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
